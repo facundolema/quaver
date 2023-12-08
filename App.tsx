@@ -1,118 +1,100 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- */
+import { useState, useEffect } from 'react';
+import { ActivityIndicator, SafeAreaView, StatusBar } from 'react-native';
+import TrackPlayer, { useTrackPlayerEvents, Event, Track } from 'react-native-track-player';
+import { SetupService, QueueInitialTracksService } from './src/services';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import PlayerScreen from './src/screens/PlayerScreen';
+import PlaylistScreen from './src/screens/PlaylistScreen';
 
-import React from 'react';
-import type {PropsWithChildren} from 'react';
-import {
-  SafeAreaView,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  useColorScheme,
-  View,
-} from 'react-native';
+const Stack = createNativeStackNavigator();
 
-import {
-  Colors,
-  DebugInstructions,
-  Header,
-  LearnMoreLinks,
-  ReloadInstructions,
-} from 'react-native/Libraries/NewAppScreen';
+function useSetupPlayer() {
+  const [playerReady, setPlayerReady] = useState<boolean>(false);
 
-type SectionProps = PropsWithChildren<{
-  title: string;
-}>;
-
-function Section({children, title}: SectionProps): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
-  return (
-    <View style={styles.sectionContainer}>
-      <Text
-        style={[
-          styles.sectionTitle,
-          {
-            color: isDarkMode ? Colors.white : Colors.black,
-          },
-        ]}>
-        {title}
-      </Text>
-      <Text
-        style={[
-          styles.sectionDescription,
-          {
-            color: isDarkMode ? Colors.light : Colors.dark,
-          },
-        ]}>
-        {children}
-      </Text>
-    </View>
-  );
+  useEffect(() => {
+    let unmounted = false;
+    (async () => {
+      await SetupService();
+      if (unmounted) return;
+      setPlayerReady(true);
+      const queue = await TrackPlayer.getQueue();
+      if (unmounted) return;
+      if (queue.length <= 0) {
+        await QueueInitialTracksService();
+        console.log('Queueing initial tracks')
+      }
+    })();
+    return () => {
+      unmounted = true;
+    };
+  }, []);
+  return playerReady;
 }
 
-function App(): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
+export default function App(): JSX.Element {
+  const [currentTrack, setCurrentTrack] = useState<Track | undefined>(undefined);
+  const [queue, setQueue] = useState<Track[]>([]);
+  
+  const isPlayerReady = useSetupPlayer();
 
-  const backgroundStyle = {
-    backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
-  };
+  useEffect(() => {
+    const fetchActiveTrack = async () => {
+      const track = await TrackPlayer.getActiveTrack()
+      setCurrentTrack(track)
+    }
+    
+    const fetchQueue = async () => {
+      console.log('Fetching queue')
+      const currentQueue = await TrackPlayer.getQueue();
+      console.log('Queue fetched', currentQueue)
+      setQueue(currentQueue);
+    };
+
+    fetchActiveTrack();
+    fetchQueue();
+  }, []);
+
+  useTrackPlayerEvents([Event.PlaybackTrackChanged], async event => {
+    const activeTrack = await TrackPlayer.getActiveTrack();
+    setCurrentTrack(activeTrack);
+  });
+
+  if (!isPlayerReady) {
+    return (
+      <SafeAreaView style={{ flex: 1 }}>
+        <StatusBar backgroundColor='white' />
+        <ActivityIndicator />
+      </SafeAreaView>
+    );
+  }
 
   return (
-    <SafeAreaView style={backgroundStyle}>
-      <StatusBar
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-        backgroundColor={backgroundStyle.backgroundColor}
-      />
-      <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
-        style={backgroundStyle}>
-        <Header />
-        <View
-          style={{
-            backgroundColor: isDarkMode ? Colors.black : Colors.white,
-          }}>
-          <Section title="Step One">
-            Edit <Text style={styles.highlight}>App.tsx</Text> to change this
-            screen and then come back to see your edits.
-          </Section>
-          <Section title="See Your Changes">
-            <ReloadInstructions />
-          </Section>
-          <Section title="Debug">
-            <DebugInstructions />
-          </Section>
-          <Section title="Learn More">
-            Read the docs to discover what to do next:
-          </Section>
-          <LearnMoreLinks />
-        </View>
-      </ScrollView>
-    </SafeAreaView>
-  );
+    <NavigationContainer>
+      <Stack.Navigator>
+        <Stack.Screen
+          name="Playlist"
+          options={{ headerShown: false }}
+        >
+          {props =>
+            <SafeAreaView style={{ flex: 1 }}>
+              <StatusBar backgroundColor='white' barStyle={'dark-content'} />
+              <PlaylistScreen {...props} currentTrack={currentTrack} queue={queue}/>
+            </SafeAreaView>
+          }
+        </Stack.Screen>
+        <Stack.Screen
+          name="Player"
+          options={{ headerShown: false }}
+        >
+          {props =>
+            <SafeAreaView style={{ flex: 1 }}>
+              <StatusBar backgroundColor='white' barStyle={'dark-content'} />
+              <PlayerScreen {...props} currentTrack={currentTrack} />
+            </SafeAreaView>
+          }
+        </Stack.Screen>
+      </Stack.Navigator>
+    </NavigationContainer>
+  )
 }
-
-const styles = StyleSheet.create({
-  sectionContainer: {
-    marginTop: 32,
-    paddingHorizontal: 24,
-  },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-  },
-  sectionDescription: {
-    marginTop: 8,
-    fontSize: 18,
-    fontWeight: '400',
-  },
-  highlight: {
-    fontWeight: '700',
-  },
-});
-
-export default App;
