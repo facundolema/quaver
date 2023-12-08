@@ -9,7 +9,7 @@ import PlaylistScreen from './src/screens/PlaylistScreen';
 
 const Stack = createNativeStackNavigator();
 
-function useSetupPlayer() {
+function useSetupPlayer(setQueueInitialized: (value: boolean) => void) {
   const [playerReady, setPlayerReady] = useState<boolean>(false);
 
   useEffect(() => {
@@ -23,6 +23,7 @@ function useSetupPlayer() {
       if (queue.length <= 0) {
         await QueueInitialTracksService();
         console.log('Queueing initial tracks')
+        setQueueInitialized(true);
       }
     })();
     return () => {
@@ -35,25 +36,22 @@ function useSetupPlayer() {
 export default function App(): JSX.Element {
   const [currentTrack, setCurrentTrack] = useState<Track | undefined>(undefined);
   const [queue, setQueue] = useState<Track[]>([]);
-  
-  const isPlayerReady = useSetupPlayer();
+  const [queueInitialized, setQueueInitialized] = useState<boolean>(false);
+
+  const isPlayerReady = useSetupPlayer(setQueueInitialized);
 
   useEffect(() => {
     const fetchActiveTrack = async () => {
       const track = await TrackPlayer.getActiveTrack()
       setCurrentTrack(track)
-    }
-    
-    const fetchQueue = async () => {
       console.log('Fetching queue')
       const currentQueue = await TrackPlayer.getQueue();
       console.log('Queue fetched', currentQueue)
       setQueue(currentQueue);
-    };
-
+    }
+    
     fetchActiveTrack();
-    fetchQueue();
-  }, []);
+  }, [queueInitialized]);
 
   useTrackPlayerEvents([Event.PlaybackTrackChanged], async event => {
     const activeTrack = await TrackPlayer.getActiveTrack();

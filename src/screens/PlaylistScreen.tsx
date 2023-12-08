@@ -5,7 +5,7 @@ import PlayerButtonCard from '../components/PlayerButtonCard';
 
 export default function PlaylistScreen({queue, currentTrack, navigation}) {
   return (
-    <View style={{height: '100%'}}>
+    <View style={{height: '100%', backgroundColor: 'white'}}>
       {queue.length <= 0 ? (
         <View
           style={{

@@ -13,7 +13,11 @@ export default function PlayerButtonCard({currentTrack, navigation}) {
       style={styles.card}>
       <View style={{display: 'flex', flexDirection: 'row', gap: 15}}>
         <View style={styles.artwork}>
-          <Image source={{uri: currentTrack?.artwork}} style={styles.image} />
+          {currentTrack && currentTrack.artwork ? (
+            <Image source={{uri: currentTrack.artwork}} style={styles.image} />
+          ) : (
+            <></>
+          )}
         </View>
         <View style={{display: 'flex'}}>
           <Text style={styles.title}>{currentTrack?.title}</Text>
